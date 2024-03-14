@@ -18,9 +18,13 @@ catch {
 Function ConvertTo-MgUserMailRecipientHC {
     <#
         .SYNOPSIS
-            Helper function for Send-MgUserMail to create a list of
-            e-mail addresses that can be used with ToRecipients,
-            CcRecipients and BccRecipients.
+            Create a list of e-mail addresses to use with Send-MgUserMail:
+            - -BodyParameter 'Message.ToRecipients'
+            - -BodyParameter 'Message.CcRecipients'
+            - -BodyParameter 'Message.BccRecipients'
+
+        .PARAMETER MailAddress
+            One or more SMTP mail addresses.
 
         .EXAMPLE
             $params = @{
@@ -41,6 +45,47 @@ Function ConvertTo-MgUserMailRecipientHC {
     $MailAddress.ForEach(
         {
             $result += @{EmailAddress = @{Address = $_ } }
+        }
+    )
+
+    , $result
+}
+
+Function ConvertTo-MgUserMailAttachmentHC {
+    <#
+        .SYNOPSIS
+            Create a list of e-mail attachments to use with Send-MgUserMail:
+            - BodyParameter 'Message.Attachments'
+
+        .PARAMETER Path
+            Full path to the file.
+
+        .EXAMPLE
+            $params = @{
+                Path = 'c:\Temp\file.txt'
+            }
+            ConvertTo-MgUserMailAttachmentHC @params
+    #>
+
+    [CmdLetBinding()]
+    [OutputType([hashtable[]])]
+    Param(
+        [Parameter(Mandatory)]
+        [ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
+        [String[]]$Path
+    )
+
+    $result = @()
+
+    $Path.ForEach(
+        {
+            $result += @{
+                '@odata.type' = '#microsoft.graph.fileAttachment'
+                Name          = ($_ -split '\\')[-1]
+                ContentBytes  = [Convert]::ToBase64String(
+                    [IO.File]::ReadAllBytes($_)
+                )
+            }
         }
     )
 

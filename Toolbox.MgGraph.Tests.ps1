@@ -41,11 +41,70 @@ Describe 'ConvertTo-MgUserMailRecipientHC' {
                     Should -Contain $_
                 }
             )
-            $actual.EmailAddress.Keys.ForEach({$_ |
-                Should -BeExactly 'Address'})
+            $actual.EmailAddress.Keys.ForEach({ $_ |
+                    Should -BeExactly 'Address' })
         }
         It 'with the correct quantity of hashtables' {
             $actual.Count | Should -Be $params.MailAddress.Count
+        }
+        It 'of type array' {
+            $actual.getType().BaseType.Name | Should -BeExactly 'Array'
+        }
+    }
+}
+Describe 'ConvertTo-MgUserMailAttachmentHC' {
+    Context 'create a hashtable for one attachment' {
+        BeforeAll {
+            $params = @{
+                Path = (New-Item -Path 'TestDrive:\file1.txt' -ItemType File).FullName
+            }
+            $actual = ConvertTo-MgUserMailAttachmentHC @params
+        }
+        It 'with the correct properties' {
+            $actual.'@odata.type' |
+            Should -BeExactly '#microsoft.graph.fileAttachment'
+            $actual.Name | Should -BeExactly 'file1.txt'
+            $actual.ContentBytes | Should -BeExactly (
+                [Convert]::ToBase64String(
+                    [IO.File]::ReadAllBytes($params.Path)
+                )
+            )
+        }
+        It 'with the correct quantity of hashtables' {
+            $actual.Count | Should -Be $params.Path.Count
+        }
+        It 'of type array' {
+            $actual.getType().BaseType.Name | Should -BeExactly 'Array'
+        }
+    }
+    Context 'create a hashtable for multiple attachments' {
+        BeforeAll {
+            $params = @{
+                Path = @(
+                    (New-Item -Path 'TestDrive:\file2.txt' -ItemType File).FullName
+                    (New-Item -Path 'TestDrive:\file3.txt' -ItemType File).FullName
+                )
+            }
+            $actual = ConvertTo-MgUserMailAttachmentHC @params
+        }
+        It 'with the correct properties' {
+            foreach ($path in $params.Path) {
+                $testActual = $actual.Where(
+                    { $_.Name -eq ($path -split '\\')[-1] }
+                )
+
+                $testActual.'@odata.type' |
+                Should -BeExactly '#microsoft.graph.fileAttachment'
+                $testActual.Name | Should -BeExactly ($path -split '\\')[-1]
+                $testActual.ContentBytes | Should -BeExactly (
+                    [Convert]::ToBase64String(
+                        [IO.File]::ReadAllBytes($path)
+                    )
+                )
+            }
+        }
+        It 'with the correct quantity of hashtables' {
+            $actual.Count | Should -Be $params.Path.Count
         }
         It 'of type array' {
             $actual.getType().BaseType.Name | Should -BeExactly 'Array'
